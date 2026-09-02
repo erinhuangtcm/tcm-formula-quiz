@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TCM Formula Ingredient Trainer</title>
+<style>
+:root {
+  --bg:#f6f4ef; --card:#fff; --ink:#252525; --muted:#6d6a63; --accent:#4c6b52;
+  --line:#ddd8cc; --good:#2e7d32; --bad:#b23a48;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink)}
+.app{max-width:900px;margin:0 auto;padding:22px 16px 40px}
+header{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px}
+h1{font-size:25px;margin:0 0 5px} .sub{color:var(--muted);font-size:14px}
+.panel,.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 3px 14px rgba(0,0,0,.04)}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+label{font-size:13px;color:var(--muted);display:block;margin-bottom:5px}
+select,button{font:inherit;border:1px solid var(--line);border-radius:11px;padding:11px 13px;background:white}
+button{cursor:pointer;font-weight:650} button.primary{background:var(--accent);color:white;border-color:var(--accent)}
+button.secondary{background:#faf9f5}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 16px}
+.stat{background:#eeeae1;border-radius:999px;padding:7px 11px;font-size:13px}
+.question{font-size:22px;font-weight:750;line-height:1.25;margin:5px 0 16px}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.choice{text-align:left;min-height:48px;background:#fff}
+.choice:hover{border-color:#9a9a8e}
+.choice.selected{outline:2px solid var(--accent);background:#f2f6f2}
+.choice.correct{border-color:var(--good);background:#edf7ed}
+.choice.wrong{border-color:var(--bad);background:#fff0f2}
+.feedback{margin-top:15px;padding:13px;border-radius:12px;background:#f2efe8;display:none}
+.actions{display:flex;gap:10px;margin-top:15px;flex-wrap:wrap}
+.role{display:inline-block;padding:3px 8px;border-radius:999px;font-size:12px;margin-left:5px}
+.chief{background:#ffd4dc} .deputy{background:#ffd9b0} .assistant{background:#fff09a} .envoy{background:#dce8a6}
+.help{color:var(--muted);font-size:13px;line-height:1.5;margin-top:12px}
+.progress{height:7px;background:#e7e3da;border-radius:99px;overflow:hidden;margin-bottom:15px}
+.bar{height:100%;background:var(--accent);width:0}
+.hidden{display:none!important}
+@media(max-width:650px){.controls,.choices{grid-template-columns:1fr}h1{font-size:22px}.question{font-size:20px}}
+</style>
+</head>
+<body>
+<div id="openHint" style="position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;
+background:#252525;color:#fff;padding:12px 14px;border-radius:14px;font:14px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+box-shadow:0 5px 20px rgba(0,0,0,.25)">
+  <b>For the full interactive quiz:</b> open this file in Safari/Chrome rather than the ChatGPT preview.
+  <button onclick="this.parentElement.remove()" style="float:right;border:0;border-radius:8px;padding:5px 9px">Got it</button>
+</div>
+
+<div class="app">
+<header>
+  <div><h1>TCM Formula Ingredient Trainer</h1><div class="sub">Built from your uploaded California Formula Ingredients pages • 83 formulas</div></div>
+  <button class="secondary" onclick="resetQuiz()">New Quiz</button>
+</header>
+
+<div class="panel">
+  <div class="controls">
+    <div><label>Quiz mode</label>
+      <select id="mode" onchange="resetQuiz()">
+        <option value="ingredients">Formula → select ingredients</option>
+        <option value="chief">Formula → identify Chief</option>
+        <option value="deputy">Formula → identify Deputy</option>
+        <option value="assistant">Formula → identify Assistant</option>
+        <option value="envoy">Formula → identify Envoy</option>
+        <option value="role">Herb → identify its role</option>
+      </select>
+    </div>
+    <div><label>Formula category</label>
+      <select id="category" onchange="resetQuiz()">
+        <option value="All">All categories</option><option>Release Exterior</option><option>Clear Heat</option><option>Drain Downward</option><option>Harmonize</option><option>Warm Interior Cold</option><option>Regulate Qi</option><option>Tonify Qi</option><option>Treat Phlegm</option><option>Reduce Food Stagnation</option><option>Treat Dryness</option><option>Tonify Yin</option><option>Expel Damp</option><option>Expel Wind</option><option>Stop Bleeding</option><option>Tonify Blood</option><option>Tonify Qi and Blood</option><option>Calm Spirit</option><option>Tonify Yang</option><option>Stabilize and Bind</option><option>Invigorate Blood</option></select>
+    </div>
+  </div>
+  <div class="stats">
+    <span class="stat" id="score">Score: 0 / 0</span>
+    <span class="stat" id="streak">Streak: 0</span>
+    <span class="stat" id="count">Question 1</span>
+  </div>
+</div>
+
+<div style="height:14px"></div>
+<div class="progress"><div class="bar" id="bar"></div></div>
+
+<div class="card">
+  <div class="question" id="question"></div>
+  <div class="choices" id="choices"></div>
+  <div class="feedback" id="feedback"></div>
+  <div class="actions">
+    <button class="primary" id="submit" onclick="submitAnswer()">Check answer</button>
+    <button class="secondary hidden" id="next" onclick="nextQuestion()">Next</button>
+  </div>
+  <div class="help" id="help"></div>
+</div>
+
+<div class="panel" style="margin-top:14px">
+  <b>How this works</b>
+  <div class="help">
+    Ingredient mode uses multi-select checkboxes, so you can select every ingredient you think belongs in the formula.
+    The role modes test your Chief/Deputy/Assistant/Envoy recall separately.
+    Distractors are pulled from other formulas, and the answer order is randomized.
+  </div>
+</div>
+</div>
+
+<script>
+const formulas = [{"name": "Sang Ju Yin", "category": "Release Exterior", "ingredients": [["Sang Ye", "Chief"], ["Ju Hua", "Deputy"], ["Lian Qiao", "Assistant"], ["Bo He", "Assistant"], ["Jie Geng", "Assistant"], ["Xing Ren", "Assistant"], ["Lu Gen", "Assistant"], ["Gan Cao", "Assistant"]]}, {"name": "Yin Qiao San", "category": "Release Exterior", "ingredients": [["Jin Yin Hua", "Chief"], ["Lian Qiao", "Chief"], ["Jie Geng", "Deputy"], ["Niu Bang Zi", "Deputy"], ["Bo He", "Assistant"], ["Dan Dou Chi", "Assistant"], ["Jing Jie Sui", "Assistant"], ["Dan Zhu Ye", "Assistant"], ["Lu Gen", "Assistant"], ["Gan Cao", "Envoy"]]}, {"name": "Chai Ge Jie Ji Tang", "category": "Release Exterior", "ingredients": [["Chai Hu", "Chief"], ["Ge Gen", "Chief"], ["Qiang Huo", "Deputy"], ["Bai Zhi", "Deputy"], ["Huang Qin", "Assistant"], ["Shi Gao", "Assistant"], ["Jie Geng", "Assistant"], ["Bai Shao", "Assistant"], ["Gan Cao", "Envoy"], ["Sheng Jiang", "Envoy"], ["Da Zao", "Envoy"]]}, {"name": "Gui Zhi Tang", "category": "Release Exterior", "ingredients": [["Gui Zhi", "Chief"], ["Bai Shao", "Deputy"], ["Sheng Jiang", "Assistant"], ["Da Zao", "Assistant"], ["Zhi Gan Cao", "Envoy"]]}, {"name": "Ren Shen Bai Du San", "category": "Release Exterior", "ingredients": [["Qiang Huo", "Deputy"], ["Du Huo", "Deputy"], ["Chuan Xiong", "Deputy"], ["Chai Hu", "Deputy"], ["Jie Geng", "Assistant"], ["Zhi Ke", "Assistant"], ["Qian Hu", "Assistant"], ["Ren Shen", "Assistant"], ["Fu Ling", "Assistant"], ["Gan Cao", "Envoy"], ["Sheng Jiang", "Envoy"], ["Bo He", "Envoy"]]}, {"name": "Huang Lian Jie Du Tang", "category": "Clear Heat", "ingredients": [["Huang Lian", "Chief"], ["Huang Qin", "Deputy"], ["Huang Bai", "Assistant"], ["Zhi Zi", "Assistant"]]}, {"name": "Xie Xin Tang", "category": "Clear Heat", "ingredients": [["Da Huang", "Chief"], ["Huang Lian", "Deputy"], ["Huang Qin", "Assistant"]]}, {"name": "Bai Hu Tang", "category": "Clear Heat", "ingredients": [["Shi Gao", "Chief"], ["Zhi Mu", "Deputy"], ["Zhi Gan Cao", "Assistant"], ["Jing Mi", "Assistant"]]}, {"name": "Qing Wei San", "category": "Clear Heat", "ingredients": [["Huang Lian", "Chief"], ["Sheng Ma", "Deputy"], ["Mu Dan Pi", "Assistant"], ["Sheng Di Huang", "Assistant"], ["Dang Gui", "Envoy"]]}, {"name": "Long Dan Xie Gan Tang", "category": "Clear Heat", "ingredients": [["Long Dan Cao", "Chief"], ["Huang Qin", "Deputy"], ["Zhi Zi", "Deputy"], ["Mu Tong", "Assistant"], ["Che Qian Zi", "Assistant"], ["Ze Xie", "Assistant"], ["Chai Hu", "Assistant"], ["Sheng Di Huang", "Assistant"], ["Dang Gui", "Assistant"], ["Gan Cao", "Envoy"]]}, {"name": "Dao Chi San", "category": "Clear Heat", "ingredients": [["Mu Tong", "Chief"], ["Sheng Di Huang", "Deputy"], ["Dan Zhu Ye", "Assistant"], ["Gan Cao Shao", "Envoy"]]}, {"name": "Bai Tou Weng Tang", "category": "Clear Heat", "ingredients": [["Bai Tou Weng", "Chief"], ["Huang Lian", "Deputy"], ["Huang Bai", "Deputy"], ["Qin Pi", "Assistant"]]}, {"name": "Qing Hao Bie Jia Tang", "category": "Clear Heat", "ingredients": [["Bie Jia", "Chief"], ["Qing Hao", "Deputy"], ["Sheng Di Huang", "Deputy"], ["Zhi Mu", "Assistant"], ["Mu Dan Pi", "Assistant"]]}, {"name": "Dang Gui Liu Huang Tang", "category": "Clear Heat", "ingredients": [["Dang Gui", "Chief"], ["Sheng Di Huang", "Deputy"], ["Shu Di Huang", "Chief"], ["Huang Lian", "Deputy"], ["Huang Qin", "Deputy"], ["Huang Bai", "Deputy"], ["Huang Qi", "Assistant"]]}, {"name": "Da Cheng Qi Tang", "category": "Drain Downward", "ingredients": [["Da Huang", "Chief"], ["Mang Xiao", "Deputy"], ["Zhi Shi", "Assistant"], ["Hou Po", "Assistant"]]}, {"name": "Xiao Cheng Qi Tang", "category": "Drain Downward", "ingredients": [["Da Huang", "Chief"], ["Hou Po", "Deputy"], ["Zhi Shi", "Assistant"]]}, {"name": "Tiao Wei Cheng Qi Tang", "category": "Drain Downward", "ingredients": [["Da Huang", "Deputy"], ["Gan Cao", "Assistant"], ["Mang Xiao", "Assistant"]]}, {"name": "Ma Zi Ren Wan", "category": "Drain Downward", "ingredients": [["Huo Ma Ren", "Chief"], ["Xing Ren", "Chief"], ["Bai Shao", "Chief"], ["Zhi Shi", "Assistant"], ["Hou Po", "Assistant"], ["Da Huang", "Assistant"]]}, {"name": "Run Chang Wan", "category": "Drain Downward", "ingredients": [["Huo Ma Ren", "Chief"], ["Tao Ren", "Deputy"], ["Dang Gui", "Deputy"], ["Sheng Di Huang", "Assistant"], ["Zhi Ke", "Assistant"]]}, {"name": "Xiao Chai Hu Tang", "category": "Harmonize", "ingredients": [["Chai Hu", "Chief"], ["Huang Qin", "Deputy"], ["Zhi Ban Xia", "Assistant"], ["Sheng Jiang", "Assistant"], ["Ren Shen", "Assistant"], ["Zhi Gan Cao", "Envoy"], ["Da Zao", "Envoy"]]}, {"name": "Si Ni San", "category": "Harmonize", "ingredients": [["Chai Hu", "Chief"], ["Zhi Shi", "Deputy"], ["Bai Shao", "Assistant"], ["Zhi Gan Cao", "Envoy"]]}, {"name": "Xiao Yao San", "category": "Harmonize", "ingredients": [["Chai Hu", "Chief"], ["Dang Gui", "Deputy"], ["Bai Shao", "Deputy"], ["Bai Zhu", "Deputy"], ["Fu Ling", "Assistant"], ["Zhi Gan Cao", "Assistant"], ["Sheng Jiang", "Assistant"], ["Bo He", "Envoy"]]}, {"name": "Ban Xia Xie Xin Tang", "category": "Harmonize", "ingredients": [["Huang Lian", "Chief"], ["Huang Qin", "Deputy"], ["Zhi Ban Xia", "Assistant"], ["Gan Jiang", "Deputy"], ["Ren Shen", "Assistant"], ["Da Zao", "Envoy"], ["Zhi Gan Cao", "Envoy"]]}, {"name": "Da Jian Zhong Tang", "category": "Warm Interior Cold", "ingredients": [["Hua Jiao", "Chief"], ["Gan Jiang", "Deputy"], ["Ren Shen", "Assistant"], ["Yi Tang", "Assistant"]]}, {"name": "Xiao Jian Zhong Tang", "category": "Warm Interior Cold", "ingredients": [["Yi Tang", "Chief"], ["Gui Zhi", "Deputy"], ["Bai Shao", "Deputy"], ["Zhi Gan Cao", "Assistant"], ["Sheng Jiang", "Assistant"], ["Da Zao", "Assistant"]]}, {"name": "Li Zhong Wan", "category": "Warm Interior Cold", "ingredients": [["Gan Jiang", "Chief"], ["Ren Shen", "Deputy"], ["Bai Zhu", "Assistant"], ["Zhi Gan Cao", "Envoy"]]}, {"name": "Wu Zhu Yu Tang", "category": "Warm Interior Cold", "ingredients": [["Wu Zhu Yu", "Chief"], ["Sheng Jiang", "Deputy"], ["Ren Shen", "Assistant"], ["Da Zao", "Envoy"]]}, {"name": "Si Ni Tang", "category": "Warm Interior Cold", "ingredients": [["Zhi Fu Zi", "Chief"], ["Gan Jiang", "Deputy"], ["Zhi Gan Cao", "Envoy"]]}, {"name": "Yue Ju Wan", "category": "Regulate Qi", "ingredients": [["Cang Zhu", "Chief"], ["Chuan Xiong", "Chief"], ["Xiang Fu", "Deputy"], ["Zhi Zi", "Assistant"], ["Shen Qu", "Assistant"]]}, {"name": "Ban Xia Hou Po Tang", "category": "Regulate Qi", "ingredients": [["Zhi Ban Xia", "Chief"], ["Hou Po", "Deputy"], ["Fu Ling", "Assistant"], ["Sheng Jiang", "Assistant"], ["Zi Su Ye", "Assistant"]]}, {"name": "Su Zi Jiang Qi Tang", "category": "Regulate Qi", "ingredients": [["Zi Su Zi", "Chief"], ["Zhi Ban Xia", "Deputy"], ["Chen Pi", "Assistant"], ["Dang Gui", "Assistant"], ["Gan Cao", "Assistant"], ["Hou Po", "Assistant"], ["Qian Hu", "Assistant"], ["Rou Gui", "Assistant"], ["Sheng Jiang", "Assistant"], ["Zi Su Ye", "Assistant"], ["Da Zao", "Assistant"]]}, {"name": "Ju Pi Zhu Ru Tang", "category": "Regulate Qi", "ingredients": [["Chen Pi", "Chief"], ["Zhu Ru", "Chief"], ["Ren Shen", "Assistant"], ["Sheng Jiang", "Assistant"], ["Gan Cao", "Assistant"], ["Da Zao", "Assistant"]]}, {"name": "Si Jun Zi Tang", "category": "Tonify Qi", "ingredients": [["Ren Shen", "Chief"], ["Bai Zhu", "Deputy"], ["Fu Ling", "Assistant"], ["Zhi Gan Cao", "Envoy"]]}, {"name": "Yu Ping Feng San", "category": "Tonify Qi", "ingredients": [["Huang Qi", "Chief"], ["Bai Zhu", "Deputy"], ["Fang Feng", "Assistant"]]}, {"name": "Sheng Ling Bai Zhu San", "category": "Tonify Qi", "ingredients": [["Ren Shen", "Chief"], ["Bai Zhu", "Chief"], ["Fu Ling", "Chief"], ["Zhi Gan Cao", "Chief"], ["Shan Yao", "Assistant"], ["Chao Bian Dou", "Assistant"], ["Lian Zi", "Assistant"]]}, {"name": "Bu Zhong Yi Qi Tang", "category": "Tonify Qi", "ingredients": [["Huang Qi", "Chief"], ["Ren Shen", "Deputy"], ["Bai Zhu", "Assistant"], ["Zhi Gan Cao", "Assistant"], ["Dang Gui", "Assistant"]]}, {"name": "Zhi Sou San", "category": "Treat Phlegm", "ingredients": [["Bai Bu", "Chief"], ["Zi Wan", "Deputy"], ["Jie Geng", "Assistant"], ["Jing Jie Sui", "Assistant"], ["Bai Qian", "Assistant"], ["Chen Pi", "Assistant"], ["Gan Cao", "Envoy"]]}, {"name": "Qing Qi Hua Tan Wan", "category": "Treat Phlegm", "ingredients": [["Dan Nan Xing", "Chief"], ["Zhi Ban Xia", "Assistant"], ["Gua Lou Ren", "Assistant"], ["Huang Qin", "Assistant"], ["Chen Pi", "Assistant"], ["Xing Ren", "Assistant"], ["Zhi Shi", "Assistant"], ["Fu Ling", "Envoy"]]}, {"name": "Wen Dan Tang", "category": "Treat Phlegm", "ingredients": [["Zhi Ban Xia", "Chief"], ["Zhu Ru", "Deputy"], ["Zhi Shi", "Assistant"], ["Chen Pi", "Assistant"], ["Fu Ling", "Assistant"], ["Zhi Gan Cao", "Envoy"], ["Sheng Jiang", "Envoy"], ["Da Zao", "Envoy"]]}, {"name": "Er Chen Tang", "category": "Treat Phlegm", "ingredients": [["Zhi Ban Xia", "Chief"], ["Ju Hong", "Deputy"], ["Fu Ling", "Assistant"], ["Zhi Gan Cao", "Envoy"], ["Sheng Jiang", "Envoy"], ["Wu Mei", "Envoy"]]}, {"name": "Ban Xia Bai Zhu Tian Ma Tang", "category": "Treat Phlegm", "ingredients": [["Zhi Ban Xia", "Chief"], ["Tian Ma", "Deputy"], ["Bai Zhu", "Deputy"], ["Fu Ling", "Assistant"], ["Ju Hong", "Assistant"], ["Sheng Jiang", "Assistant"], ["Da Zao", "Assistant"], ["Gan Cao", "Assistant"]]}, {"name": "Bei Mu Gua Lou San", "category": "Treat Phlegm", "ingredients": [["Chuan Bei Mu", "Chief"], ["Gua Lou Ren", "Deputy"], ["Tian Hua Fen", "Assistant"], ["Ju Hong", "Assistant"], ["Fu Ling", "Assistant"], ["Jie Geng", "Assistant"]]}, {"name": "Bao He Wan", "category": "Reduce Food Stagnation", "ingredients": [["Shan Zha", "Chief"], ["Shen Qu", "Deputy"], ["Lai Fu Zi", "Assistant"], ["Zhi Ban Xia", "Assistant"], ["Chen Pi", "Assistant"], ["Fu Ling", "Assistant"], ["Lian Qiao", "Assistant"], ["Mai Ya", "Assistant"]]}, {"name": "Xing Su San", "category": "Treat Dryness", "ingredients": [["Zi Su Ye", "Chief"], ["Xing Ren", "Chief"], ["Qian Hu", "Deputy"], ["Jie Geng", "Assistant"], ["Zhi Ke", "Assistant"], ["Chen Pi", "Assistant"], ["Fu Ling", "Assistant"], ["Zhi Ban Xia", "Assistant"], ["Sheng Jiang", "Envoy"], ["Da Zao", "Envoy"], ["Gan Cao", "Envoy"]]}, {"name": "Mai Men Dong Tang", "category": "Treat Dryness", "ingredients": [["Mai Men Dong", "Chief"], ["Ren Shen", "Deputy"], ["Jing Mi", "Assistant"], ["Da Zao", "Envoy"], ["Gan Cao", "Envoy"], ["Zhi Ban Xia", "Assistant"]]}, {"name": "Bai He Gu Jin Tang", "category": "Tonify Yin", "ingredients": [["Bai He", "Chief"], ["Sheng Di Huang", "Chief"], ["Shu Di Huang", "Deputy"], ["Mai Men Dong", "Assistant"], ["Xuan Shen", "Assistant"], ["Chuan Bei Mu", "Deputy"], ["Jie Geng", "Assistant"], ["Dang Gui", "Assistant"], ["Bai Shao", "Assistant"], ["Gan Cao", "Envoy"]]}, {"name": "Liu Wei Di Huang Wan", "category": "Tonify Yin", "ingredients": [["Shu Di Huang", "Chief"], ["Shan Zhu Yu", "Deputy"], ["Shan Yao", "Deputy"], ["Ze Xie", "Assistant"], ["Mu Dan Pi", "Assistant"], ["Fu Ling", "Assistant"]]}, {"name": "Zuo Gui Wan", "category": "Tonify Yin", "ingredients": [["Shu Di Huang", "Chief"], ["Shan Yao", "Deputy"], ["Gou Qi Zi", "Deputy"], ["Shan Zhu Yu", "Deputy"], ["Chuan Niu Xi", "Assistant"], ["Tu Si Zi", "Assistant"], ["Lu Jiao Jiao", "Deputy"], ["Gui Ban Jiao", "Deputy"]]}, {"name": "Huo Xiang Zheng Qi Tang", "category": "Expel Damp", "ingredients": [["Huo Xiang", "Chief"], ["Hou Po", "Deputy"], ["Chen Pi", "Assistant"], ["Zi Su Ye", "Assistant"], ["Bai Zhi", "Assistant"], ["Zhi Ban Xia", "Assistant"], ["Da Fu Pi", "Assistant"], ["Bai Zhu", "Assistant"], ["Fu Ling", "Assistant"], ["Jie Geng", "Assistant"], ["Sheng Jiang", "Assistant"], ["Da Zao", "Assistant"], ["Zhi Gan Cao", "Envoy"]]}, {"name": "Ping Wei San", "category": "Expel Damp", "ingredients": [["Cang Zhu", "Chief"], ["Hou Po", "Deputy"], ["Chen Pi", "Deputy"], ["Zhi Gan Cao", "Assistant"], ["Sheng Jiang", "Assistant"], ["Da Zao", "Envoy"]]}, {"name": "Wu Ling San", "category": "Expel Damp", "ingredients": [["Ze Xie", "Chief"], ["Fu Ling", "Deputy"], ["Zhu Ling", "Assistant"], ["Bai Zhu", "Assistant"], ["Gui Zhi", "Assistant"]]}, {"name": "Zhu Ling Tang", "category": "Expel Damp", "ingredients": [["Zhu Ling", "Chief"], ["Fu Ling", "Deputy"], ["Ze Xie", "Assistant"], ["Hua Shi", "Assistant"], ["E Jiao", "Assistant"]]}, {"name": "Wu Pi San", "category": "Expel Damp", "ingredients": [["Sang Bai Pi", "Chief"], ["Sheng Jiang Pi", "Deputy"], ["Fu Ling Pi", "Assistant"], ["Chen Pi", "Assistant"], ["Da Fu Pi", "Envoy"]]}, {"name": "Ba Zheng San", "category": "Expel Damp", "ingredients": [["Qu Mai", "Chief"], ["Bian Xu", "Chief"], ["Mu Tong", "Deputy"], ["Hua Shi", "Deputy"], ["Che Qian Zi", "Assistant"], ["Zhi Zi", "Assistant"], ["Zhi Da Huang", "Assistant"], ["Deng Xing Cao", "Assistant"], ["Zhi Gan Cao", "Envoy"]]}, {"name": "Juan Bi Tang", "category": "Expel Damp", "ingredients": [["Qiang Huo", "Chief"], ["Fang Feng", "Chief"], ["Jiang Huang", "Assistant"], ["Dang Gui", "Deputy"], ["Zhi Huang Qi", "Deputy"], ["Bai Shao", "Deputy"], ["Zhi Gan Cao", "Assistant"], ["Sheng Jiang", "Envoy"]]}, {"name": "Zhen Wu Tang", "category": "Expel Damp", "ingredients": [["Zhi Fu Zi", "Chief"], ["Bai Zhu", "Deputy"], ["Fu Ling", "Deputy"], ["Sheng Jiang", "Assistant"], ["Bai Shao", "Assistant"]]}, {"name": "Xiao Feng San", "category": "Expel Wind", "ingredients": [["Jing Jie", "Chief"], ["Fang Feng", "Chief"], ["Niu Bang Zi", "Deputy"], ["Chuan Xiong", "Deputy"], ["Cang Zhu", "Deputy"], ["Ku Shen", "Deputy"], ["Mu Tong", "Deputy"], ["Shi Gao", "Assistant"], ["Zhi Mu", "Assistant"], ["Sheng Di Huang", "Assistant"], ["Dang Gui", "Assistant"], ["Hei Zhi Ma", "Assistant"], ["Gan Cao", "Envoy"]]}, {"name": "Xiao Huo Luo Dan", "category": "Expel Wind", "ingredients": [["Zhi Cao Wu", "Chief"], ["Zhi Chuan Wu", "Chief"], ["Zhi Tian Nan Xing", "Chief"], ["Mo Yao", "Assistant"], ["Ru Xiang", "Assistant"], ["Di Long", "Assistant"]]}, {"name": "Tian Ma Gou Teng Yin", "category": "Expel Wind", "ingredients": [["Tian Ma", "Chief"], ["Gou Teng", "Chief"], ["Shi Jue Ming", "Deputy"], ["Zhi Zi", "Assistant"], ["Huang Qin", "Assistant"], ["Yi Mu Cao", "Assistant"], ["Chuan Niu Xi", "Assistant"], ["Du Zhong", "Assistant"], ["Sang Ji Sheng", "Assistant"], ["Ye Jiao Teng", "Assistant"], ["Fu Shen", "Assistant"]]}, {"name": "Zhen Gan Xi Feng Tang", "category": "Expel Wind", "ingredients": [["Huai Niu Xi", "Chief"], ["Dai Zhe Shi", "Deputy"], ["Long Gu", "Deputy"], ["Mu Li", "Deputy"], ["Gui Ban", "Deputy"], ["Xuan Shen", "Assistant"], ["Tian Men Dong", "Assistant"], ["Bai Shao", "Assistant"], ["Yin Chen Hao", "Assistant"], ["Chuan Lian Zi", "Assistant"], ["Mai Ya", "Assistant"], ["Gan Cao", "Envoy"]]}, {"name": "Huai Hua San", "category": "Stop Bleeding", "ingredients": [["Huai Hua Mi", "Chief"], ["Ce Bai Ye", "Deputy"], ["Jing Jie Sui", "Assistant"], ["Zhi Ke", "Assistant"]]}, {"name": "Jiao Ai Tang", "category": "Stop Bleeding", "ingredients": [["E Jiao", "Chief"], ["Ai Ye", "Chief"], ["Sheng Di Huang", "Deputy"], ["Dang Gui", "Deputy"], ["Chuan Xiong", "Deputy"], ["Bai Shao", "Assistant"], ["Gan Cao", "Assistant"]]}, {"name": "Si Wu Tang", "category": "Tonify Blood", "ingredients": [["Shu Di Huang", "Chief"], ["Bai Shao", "Deputy"], ["Dang Gui", "Assistant"], ["Chuan Xiong", "Assistant"]]}, {"name": "Dang Gui Bu Xue Tang", "category": "Tonify Blood", "ingredients": [["Huang Qi", "Chief"], ["Dang Gui", "Deputy"]]}, {"name": "Ba Zhen Tang", "category": "Tonify Qi and Blood", "ingredients": [["Ren Shen", "Chief"], ["Shu Di Huang", "Chief"], ["Bai Zhu", "Deputy"], ["Fu Ling", "Deputy"], ["Zhi Gan Cao", "Assistant"], ["Bai Shao", "Deputy"], ["Dang Gui", "Deputy"], ["Chuan Xiong", "Assistant"], ["Sheng Jiang", "Envoy"], ["Da Zao", "Envoy"]]}, {"name": "Shi Quan Da Bu Tang", "category": "Tonify Qi and Blood", "ingredients": [["Ren Shen", "Chief"], ["Bai Zhu", "Chief"], ["Fu Ling", "Chief"], ["Zhi Gan Cao", "Chief"], ["Shu Di Huang", "Deputy"], ["Bai Shao", "Deputy"], ["Dang Gui", "Deputy"], ["Chuan Xiong", "Deputy"], ["Rou Gui", "Assistant"], ["Huang Qi", "Deputy"]]}, {"name": "Gui Pi Tang", "category": "Tonify Qi and Blood", "ingredients": [["Ren Shen", "Chief"], ["Huang Qi", "Chief"], ["Bai Zhu", "Deputy"], ["Fu Ling", "Deputy"], ["Suan Zao Ren", "Deputy"], ["Long Yan Rou", "Deputy"], ["Mu Xiang", "Assistant"], ["Zhi Gan Cao", "Assistant"], ["Dang Gui", "Assistant"], ["Zhi Yuan Zhi", "Assistant"], ["Sheng Jiang", "Envoy"], ["Da Zao", "Envoy"]]}, {"name": "Huang Lian E Jiao Tang", "category": "Calm Spirit", "ingredients": [["Huang Lian", "Chief"], ["E Jiao", "Chief"], ["Huang Qin", "Deputy"], ["Bai Shao", "Deputy"], ["Ji Zi Huang", "Assistant"]]}, {"name": "Suan Zao Ren Tang", "category": "Calm Spirit", "ingredients": [["Suan Zao Ren", "Chief"], ["Fu Ling", "Assistant"], ["Zhi Mu", "Assistant"], ["Chuan Xiong", "Deputy"], ["Gan Cao", "Envoy"]]}, {"name": "Gan Mai Da Zao Tang", "category": "Calm Spirit", "ingredients": [["Fu Xiao Mai", "Chief"], ["Gan Cao", "Deputy"], ["Da Zao", "Deputy"]]}, {"name": "Jin Gui Shen Qi Wan", "category": "Tonify Yang", "ingredients": [["Zhi Fu Zi", "Chief"], ["Gui Zhi", "Deputy"], ["Shu Di Huang", "Deputy"], ["Shan Zhu Yu", "Deputy"], ["Shan Yao", "Deputy"], ["Ze Xie", "Assistant"], ["Fu Ling", "Assistant"], ["Mu Dan Pi", "Assistant"]]}, {"name": "You Gui Wan", "category": "Tonify Yang", "ingredients": [["Zhi Fu Zi", "Chief"], ["Rou Gui", "Deputy"], ["Lu Jiao Jiao", "Deputy"], ["Shu Di Huang", "Deputy"], ["Shan Zhu Yu", "Deputy"], ["Shan Yao", "Deputy"], ["Gou Qi Zi", "Assistant"], ["Tu Si Zi", "Assistant"], ["Du Zhong", "Assistant"], ["Dang Gui", "Assistant"]]}, {"name": "Gu Jing Wan", "category": "Stabilize and Bind", "ingredients": [["Gui Ban", "Chief"], ["Bai Shao", "Chief"], ["Huang Qin", "Deputy"], ["Chun Gen Pi", "Assistant"], ["Huang Bai", "Assistant"], ["Xiang Fu", "Assistant"]]}, {"name": "Wan Dai Tang", "category": "Stabilize and Bind", "ingredients": [["Bai Zhu", "Chief"], ["Shan Yao", "Chief"], ["Ren Shen", "Deputy"], ["Cang Zhu", "Deputy"], ["Chen Pi", "Assistant"], ["Che Qian Zi", "Deputy"], ["Bai Shao", "Deputy"], ["Chai Hu", "Assistant"], ["Jing Jie Sui Tan", "Assistant"], ["Gan Cao", "Assistant"]]}, {"name": "Jin Suo Gu Jing Wan", "category": "Stabilize and Bind", "ingredients": [["Sha Yuan Ji Li", "Chief"], ["Lian Xu", "Deputy"], ["Qian Shi", "Assistant"], ["Duan Long Gu", "Assistant"], ["Duan Mu Li", "Assistant"], ["Lian Zi", "Assistant"]]}, {"name": "Si Shen Wan", "category": "Stabilize and Bind", "ingredients": [["Bu Gu Zhi", "Chief"], ["Rou Dou Kou", "Deputy"], ["Wu Zhu Yu", "Deputy"], ["Wu Wei Zi", "Assistant"], ["Sheng Jiang", "Assistant"], ["Da Zao", "Envoy"]]}, {"name": "Xue Fu Zhu Yu Tang", "category": "Invigorate Blood", "ingredients": [["Tao Ren", "Chief"], ["Hong Hua", "Chief"], ["Chuan Xiong", "Deputy"], ["Dang Gui", "Deputy"], ["Chi Shao", "Deputy"], ["Chuan Niu Xi", "Assistant"], ["Chai Hu", "Assistant"], ["Jie Geng", "Assistant"], ["Zhi Ke", "Assistant"], ["Sheng Di Huang", "Assistant"], ["Gan Cao", "Envoy"]]}, {"name": "Dan Shen Yin", "category": "Invigorate Blood", "ingredients": [["Dan Shen", "Chief"], ["Tan Xiang", "Deputy"], ["Sha Ren", "Assistant"]]}, {"name": "Tao He Cheng Qi Tang", "category": "Invigorate Blood", "ingredients": [["Tao Ren", "Chief"], ["Da Huang", "Chief"], ["Gui Zhi", "Deputy"], ["Mang Xiao", "Assistant"], ["Zhi Gan Cao", "Assistant"]]}, {"name": "Gui Zhi Fu Ling Wan", "category": "Invigorate Blood", "ingredients": [["Gui Zhi", "Chief"], ["Fu Ling", "Deputy"], ["Chi Shao", "Deputy"], ["Mu Dan Pi", "Assistant"], ["Tao Ren", "Assistant"]]}, {"name": "Sheng Hua Tang", "category": "Invigorate Blood", "ingredients": [["Dang Gui", "Chief"], ["Chuan Xiong", "Deputy"], ["Tao Ren", "Deputy"], ["Pao Jiang", "Assistant"], ["Zhi Gan Cao", "Envoy"]]}, {"name": "Wen Jing Tang", "category": "Invigorate Blood", "ingredients": [["Wu Zhu Yu", "Chief"], ["Gui Zhi", "Deputy"], ["Dang Gui", "Deputy"], ["Chuan Xiong", "Deputy"], ["Bai Shao", "Deputy"], ["E Jiao", "Assistant"], ["Mai Men Dong", "Assistant"], ["Mu Dan Pi", "Assistant"], ["Ren Shen", "Assistant"], ["Sheng Jiang", "Assistant"], ["Gan Cao", "Envoy"], ["Zhi Ban Xia", "Assistant"]]}, {"name": "Sheng Mai San", "category": "Tonify Qi", "ingredients": [["Ren Shen", "Chief"], ["Mai Men Dong", "Deputy"], ["Wu Wei Zi", "Assistant"]]}];
+const allIngredients = ["Ai Ye", "Bai Bu", "Bai He", "Bai Qian", "Bai Shao", "Bai Tou Weng", "Bai Zhi", "Bai Zhu", "Bian Xu", "Bie Jia", "Bo He", "Bu Gu Zhi", "Cang Zhu", "Ce Bai Ye", "Chai Hu", "Chao Bian Dou", "Che Qian Zi", "Chen Pi", "Chi Shao", "Chuan Bei Mu", "Chuan Lian Zi", "Chuan Niu Xi", "Chuan Xiong", "Chun Gen Pi", "Da Fu Pi", "Da Huang", "Da Zao", "Dai Zhe Shi", "Dan Dou Chi", "Dan Nan Xing", "Dan Shen", "Dan Zhu Ye", "Dang Gui", "Deng Xing Cao", "Di Long", "Du Huo", "Du Zhong", "Duan Long Gu", "Duan Mu Li", "E Jiao", "Fang Feng", "Fu Ling", "Fu Ling Pi", "Fu Shen", "Fu Xiao Mai", "Gan Cao", "Gan Cao Shao", "Gan Jiang", "Ge Gen", "Gou Qi Zi", "Gou Teng", "Gua Lou Ren", "Gui Ban", "Gui Ban Jiao", "Gui Zhi", "Hei Zhi Ma", "Hong Hua", "Hou Po", "Hua Jiao", "Hua Shi", "Huai Hua Mi", "Huai Niu Xi", "Huang Bai", "Huang Lian", "Huang Qi", "Huang Qin", "Huo Ma Ren", "Huo Xiang", "Ji Zi Huang", "Jiang Huang", "Jie Geng", "Jin Yin Hua", "Jing Jie", "Jing Jie Sui", "Jing Jie Sui Tan", "Jing Mi", "Ju Hong", "Ju Hua", "Ku Shen", "Lai Fu Zi", "Lian Qiao", "Lian Xu", "Lian Zi", "Long Dan Cao", "Long Gu", "Long Yan Rou", "Lu Gen", "Lu Jiao Jiao", "Mai Men Dong", "Mai Ya", "Mang Xiao", "Mo Yao", "Mu Dan Pi", "Mu Li", "Mu Tong", "Mu Xiang", "Niu Bang Zi", "Pao Jiang", "Qian Hu", "Qian Shi", "Qiang Huo", "Qin Pi", "Qing Hao", "Qu Mai", "Ren Shen", "Rou Dou Kou", "Rou Gui", "Ru Xiang", "Sang Bai Pi", "Sang Ji Sheng", "Sang Ye", "Sha Ren", "Sha Yuan Ji Li", "Shan Yao", "Shan Zha", "Shan Zhu Yu", "Shen Qu", "Sheng Di Huang", "Sheng Jiang", "Sheng Jiang Pi", "Sheng Ma", "Shi Gao", "Shi Jue Ming", "Shu Di Huang", "Suan Zao Ren", "Tan Xiang", "Tao Ren", "Tian Hua Fen", "Tian Ma", "Tian Men Dong", "Tu Si Zi", "Wu Mei", "Wu Wei Zi", "Wu Zhu Yu", "Xiang Fu", "Xing Ren", "Xuan Shen", "Ye Jiao Teng", "Yi Mu Cao", "Yi Tang", "Yin Chen Hao", "Ze Xie", "Zhi Ban Xia", "Zhi Cao Wu", "Zhi Chuan Wu", "Zhi Da Huang", "Zhi Fu Zi", "Zhi Gan Cao", "Zhi Huang Qi", "Zhi Ke", "Zhi Mu", "Zhi Shi", "Zhi Tian Nan Xing", "Zhi Yuan Zhi", "Zhi Zi", "Zhu Ling", "Zhu Ru", "Zi Su Ye", "Zi Su Zi", "Zi Wan"];
+let current=null, selected=new Set(), answered=false, score=0, total=0, streak=0, qnum=0;
+
+function pool() {
+  const cat=document.getElementById('category').value;
+  return formulas.filter(f=>cat==='All'||f.category===cat);
+}
+function shuffle(a) { return [...a].sort(()=>Math.random()-0.5); }
+function pickFormula() {
+  const p=pool();
+  return p[Math.floor(Math.random()*p.length)];
+}
+function roleClass(r) { return r.toLowerCase(); }
+
+function resetQuiz() {
+  score=0; total=0; streak=0; qnum=0;
+  updateStats(); nextQuestion();
+}
+function updateStats() {
+  document.getElementById('score').textContent=`Score: ${score} / ${total}`;
+  document.getElementById('streak').textContent=`Streak: ${streak}`;
+  document.getElementById('count').textContent=`Question ${qnum||1}`;
+  document.getElementById('bar').style.width=(total?Math.min(100,(total%10)*10):0)+'%';
+}
+
+function makeChoices(corrects, mode, formula) {
+  if(mode==='ingredients') {
+    const distractors=shuffle(allIngredients.filter(x=>!corrects.includes(x))).slice(0,Math.max(6,corrects.length));
+    return shuffle([...corrects,...distractors]);
+  }
+  if(mode==='role') {
+    return shuffle(['Chief','Deputy','Assistant','Envoy']);
+  }
+  const distractors=shuffle(allIngredients.filter(x=>!corrects.includes(x))).slice(0,Math.max(4, 6-corrects.length));
+  return shuffle([...corrects,...distractors]);
+}
+
+function nextQuestion() {
+  answered=false; selected=new Set(); qnum++;
+  current=pickFormula();
+  const mode=document.getElementById('mode').value;
+  let corrects, text;
+  if(mode==='ingredients') {
+    corrects=current.ingredients.map(x=>x[0]);
+    text=`Select ALL ingredients in <i>${current.name}</i>.`;
+    document.getElementById('help').textContent='Select every ingredient you believe belongs. There may be more than one correct choice.';
+  } else if(mode==='role') {
+    const item=current.ingredients[Math.floor(Math.random()*current.ingredients.length)];
+    current.target=item;
+    corrects=[item[1]];
+    text=`What is the role of <i>${item[0]}</i> in <i>${current.name}</i>?`;
+    document.getElementById('help').textContent='Choose the role indicated by the color coding on your study sheet.';
+  } else {
+    const wanted=mode[0].toUpperCase()+mode.slice(1);
+    corrects=current.ingredients.filter(x=>x[1]===wanted).map(x=>x[0]);
+    text=`Select ALL <b>${wanted}</b> herbs in <i>${current.name}</i>.`;
+    document.getElementById('help').textContent='Select every herb that has this role. There may be more than one correct choice.';
+  }
+  current.corrects=corrects;
+  current.choices=makeChoices(corrects,mode,current);
+  render(text,mode);
+  updateStats();
+}
+function render(text,mode) {
+  document.getElementById('question').innerHTML=text;
+  const box=document.getElementById('choices'); box.innerHTML='';
+  current.choices.forEach((c,i)=>{
+    const b=document.createElement('button'); b.className='choice'; b.dataset.value=c;
+    b.textContent=c;
+    b.onclick=()=>selectChoice(b,c,mode);
+    box.appendChild(b);
+  });
+  document.getElementById('feedback').style.display='none';
+  document.getElementById('submit').classList.remove('hidden');
+  document.getElementById('next').classList.add('hidden');
+}
+function selectChoice(btn,value,mode) {
+  if(answered) return;
+  if(mode==='ingredients') {
+    if(selected.has(value)) {selected.delete(value); btn.classList.remove('selected');}
+    else {selected.add(value); btn.classList.add('selected');}
+  } else {
+    selected=new Set([value]);
+    document.querySelectorAll('.choice').forEach(x=>x.classList.remove('selected'));
+    btn.classList.add('selected');
+  }
+}
+function submitAnswer() {
+  if(answered) return;
+  const mode=document.getElementById('mode').value;
+  const correct=new Set(current.corrects);
+  let ok;
+  if(mode==='ingredients') {
+    ok=selected.size===correct.size && [...selected].every(x=>correct.has(x));
+  } else {
+    ok=selected.size===1 && correct.has([...selected][0]);
+  }
+  answered=true; total++;
+  if(ok) {score++;streak++;} else streak=0;
+  document.querySelectorAll('.choice').forEach(b=>{
+    const v=b.dataset.value;
+    if(correct.has(v)) b.classList.add('correct');
+    if(selected.has(v)&&!correct.has(v)) b.classList.add('wrong');
+  });
+  const fb=document.getElementById('feedback'); fb.style.display='block';
+  if(mode==='ingredients') {
+    const missed=[...correct].filter(x=>!selected.has(x));
+    const extra=[...selected].filter(x=>!correct.has(x));
+    fb.innerHTML=ok
+      ? `<b>Perfect.</b> You selected all ${correct.size} ingredients.`
+      : `<b>Review:</b> ${missed.length?`Missed: ${missed.join(', ')}. `:''}${extra.length?`Extra choices: ${extra.join(', ')}.`:''}`;
+  } else if(mode==='role') {
+    const target=current.target;
+    const role=current.ingredients.find(x=>x[0]===target)[1];
+    fb.innerHTML=`<b>${target}</b> is the <span class="role ${roleClass(role)}">${role}</span> in ${current.name}.`;
+  } else {
+    const target=current.target;
+    const role=current.ingredients.find(x=>x[0]===target)[1];
+    fb.innerHTML=`<b>${target}</b> is the <span class="role ${roleClass(role)}">${role}</span> in ${current.name}.`;
+  }
+  document.getElementById('submit').classList.add('hidden');
+  document.getElementById('next').classList.remove('hidden');
+  updateStats();
+}
+</script>
+</body>
+</html>
